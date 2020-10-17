@@ -1,5 +1,7 @@
 #include "internal.h"
 
+#include <string.h>
+
 static void rc_update_condition_pause(rc_condition_t* condition, int* in_pause) {
   if (condition->next != 0) {
     rc_update_condition_pause(condition->next, in_pause);
@@ -25,6 +27,92 @@ static void rc_update_condition_pause(rc_condition_t* condition, int* in_pause) 
   }
 }
 
+static rc_condition_t* rc_parse_addaddress_chain(const char** memaddr, rc_parse_state_t* parse) {
+  char variable_expr[256]; /* this should support ~16 levels of indirection */
+  const char* ptr = *memaddr;
+  const char* cond_start;
+  size_t length;
+  rc_operand_t operand;
+  rc_condition_t* cond;
+  int result;
+
+  do {
+    cond_start = ptr;
+    ptr += 2; /* skip over 'I:' */
+
+    result = rc_parse_operand(&operand, &ptr, 0, -1, parse);
+    if (result < 0) {
+      parse->offset = result;
+      return 0;
+    }
+
+    if (rc_parse_operator(&ptr) != RC_OPERATOR_NONE) {
+      result = rc_parse_operand(&operand, &ptr, 0, -1, parse);
+      if (result < 0) {
+        parse->offset = result;
+        return 0;
+      }
+    }
+
+    if (*ptr != '_')
+      return 0;
+    ++ptr;
+
+  } while (ptr[1] == ':' && (ptr[0] == 'I' || ptr[0] == 'i'));
+
+  cond_start = ptr;
+
+  length = (size_t)(ptr - *memaddr);
+  if (length > sizeof(variable_expr) - 16) {
+    parse->offset = RC_INVALID_STATE;
+    return 0;
+  }
+
+  memcpy(variable_expr, *memaddr, length);
+  variable_expr[length++] = 'M';
+  variable_expr[length++] = ':';
+
+  /* process the next condition normally, then replace the first operand with the variable */
+  *memaddr = cond_start;
+  cond = rc_parse_condition(memaddr, parse, 0);
+  if (cond) {
+    if (cond->operand1.type != RC_OPERAND_CONST) {
+      if (cond_start[1] == ':')
+        cond_start += 2;
+
+      rc_parse_operand(&operand, &ptr, 0, 0, parse);
+
+      memcpy(&variable_expr[length], cond_start, (size_t)(ptr - cond_start));
+      length += (size_t)(ptr - cond_start);
+      variable_expr[length] = '\0';
+
+      cond->operand1.type = RC_OPERAND_VARIABLE;
+      cond->operand1.value.memref = rc_alloc_helper_variable(variable_expr, length, parse);
+      if (parse->offset < 0)
+        return 0;
+    }
+
+    if (cond->operand2.type != RC_OPERAND_CONST) {
+      length -= (size_t)(ptr - cond_start);
+      rc_parse_operator(&ptr);
+
+      cond_start = ptr;
+      rc_parse_operand(&operand, &ptr, 0, 0, parse);
+
+      memcpy(&variable_expr[length], cond_start, (size_t)(ptr - cond_start));
+      length += (size_t)(ptr - cond_start);
+      variable_expr[length] = '\0';
+
+      cond->operand2.type = RC_OPERAND_VARIABLE;
+      cond->operand2.value.memref = rc_alloc_helper_variable(variable_expr, length, parse);
+      if (parse->offset < 0)
+        return 0;
+    }
+  }
+
+  return cond;
+}
+
 rc_condset_t* rc_parse_condset(const char** memaddr, rc_parse_state_t* parse, int is_value) {
   rc_condset_t* self;
   rc_condition_t** next;
@@ -44,7 +132,10 @@ rc_condset_t* rc_parse_condset(const char** memaddr, rc_parse_state_t* parse, in
 
   in_add_address = 0;
   for (;;) {
-    *next = rc_parse_condition(memaddr, parse, in_add_address);
+    if (parse->variables && (**memaddr == 'I' || **memaddr == 'i'))
+      *next = rc_parse_addaddress_chain(memaddr, parse);
+    else
+      *next = rc_parse_condition(memaddr, parse, in_add_address);
 
     if (parse->offset < 0) {
       return 0;
@@ -129,7 +220,6 @@ rc_condset_t* rc_parse_condset(const char** memaddr, rc_parse_state_t* parse, in
   }
 
   *next = 0;
-
 
   if (parse->buffer != 0) {
     in_pause = 0;

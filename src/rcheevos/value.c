@@ -255,7 +255,7 @@ void rc_init_parse_state_variables(rc_parse_state_t* parse, rc_value_t** variabl
 }
 
 rc_memref_value_t* rc_alloc_helper_variable(const char* memaddr, int memaddr_len, rc_parse_state_t* parse) {
-  rc_value_t** variables = parse->variables;
+  rc_value_t** variables;
   rc_value_t* value;
   const char* name;
 
@@ -289,6 +289,8 @@ rc_memref_value_t* rc_alloc_helper_variable(const char* memaddr, int memaddr_len
     }
   }
 
+  /* see if we've already genereated a helper variable for this expression */
+  variables = parse->variables;
   while ((value = *variables) != NULL) {
     if (strncmp(value->name, memaddr, memaddr_len) == 0 && value->name[memaddr_len] == 0)
       return &value->value;
@@ -296,20 +298,27 @@ rc_memref_value_t* rc_alloc_helper_variable(const char* memaddr, int memaddr_len
     variables = (rc_value_t**)&value->value.next;
   }
 
+  /* didn't find an existing one, generate a new one */
   value = RC_ALLOC_SCRATCH(rc_value_t, parse);
   memset(&value->value, 0, sizeof(value->value));
   value->value.memref.is_variable = 1;
   value->memrefs = NULL;
+  *variables = value;
 
   /* capture name before calling parse as parse will update memaddr pointer */
   name = rc_alloc_str(parse, memaddr, memaddr_len);
 
+  /* disable variable lookups to prevent infinite recursion */
+  variables = parse->variables;
+  parse->variables = NULL;
+
   rc_parse_value_internal(value, &memaddr, parse);
+
+  parse->variables = variables;
 
   /* store name after calling parse as parse will set name to (unnamed) */
   value->name = name;
 
-  *variables = value;
   return &value->value;
 }
 

@@ -98,15 +98,10 @@ char* rc_alloc_str(rc_parse_state_t* parse, const char* text, int length) {
 
 void rc_init_parse_state(rc_parse_state_t* parse, void* buffer, lua_State* L, int funcs_ndx)
 {
-  parse->offset = 0;
+  memset(parse, 0, sizeof(*parse));
+  parse->buffer = buffer;
   parse->L = L;
   parse->funcs_ndx = funcs_ndx;
-  parse->buffer = buffer;
-  parse->scratch.buffer.offset = 0;
-  parse->scratch.buffer.next = NULL;
-  parse->scratch.strings = NULL;
-  parse->first_memref = 0;
-  parse->measured_target = 0;
 }
 
 void rc_destroy_parse_state(rc_parse_state_t* parse)

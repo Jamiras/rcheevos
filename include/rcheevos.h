@@ -116,8 +116,9 @@ enum {
   RC_OPERAND_FP,             /* A floating point value. */
   RC_OPERAND_LUA,            /* A Lua function that provides the value. */
   RC_OPERAND_PRIOR,          /* The last differing value at this address. */
-  RC_OPERAND_BCD,            /* The BCD-decoded value of a live address in RAM */
-  RC_OPERAND_INVERTED        /* The twos-complement value of a live address in RAM */
+  RC_OPERAND_BCD,            /* The BCD-decoded value of a live address in RAM. */
+  RC_OPERAND_INVERTED,       /* The twos-complement value of a live address in RAM. */
+  RC_OPERAND_VARIABLE        /* The value of a variable. */
 };
 
 typedef struct {

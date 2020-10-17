@@ -145,9 +145,13 @@ static int rc_parse_operand_memory(rc_operand_t* self, const char** memaddr, rc_
     address = 0xffffffffU;
   }
 
-  self->value.memref = rc_alloc_memref_value(parse, address, size, is_indirect);
-  if (parse->offset < 0)
-    return parse->offset;
+  /* negative is_indirect is used when just trying to find the length of the operand string.
+   * don't allocate the memref */
+  if (is_indirect >= 0) {
+    self->value.memref = rc_alloc_memref_value(parse, address, size, is_indirect);
+    if (parse->offset < 0)
+      return parse->offset;
+  }
 
   *memaddr = end;
   return RC_OK;
