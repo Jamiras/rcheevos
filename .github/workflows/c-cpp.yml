@@ -20,6 +20,9 @@ jobs:
     - name: Run tests
       run: ./test
       working-directory: test
+    - name: Valgrind
+      run: make ARCH=x86 BUILD=c89 TARGET=valgrind
+      working-directory: test
 
   linux-x64:
     runs-on: ubuntu-latest
