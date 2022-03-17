@@ -580,6 +580,22 @@ static int rc_hash_7800(char hash[33], const uint8_t* buffer, size_t buffer_size
   return rc_hash_buffer(hash, buffer, buffer_size);
 }
 
+static int rc_hash_amstrad_cpc(char hash[33], const uint8_t* buffer, size_t buffer_size)
+{
+  /* if the file contains a header, ignore it */
+  /* https://www.cpcwiki.eu/index.php/Format:DSK_disk_image_file_format#Disc_Information_block */
+  if (memcmp(buffer, "EXTENDED CPC DSK", 16) == 0 ||
+      memcmp(buffer, "MV - CPC", 8) == 0)
+  {
+    rc_hash_verbose("Ignoring CPC disk header");
+
+    buffer += 0x30;
+    buffer_size -= 0x30;
+  }
+
+  return rc_hash_buffer(hash, buffer, buffer_size);
+}
+
 static int rc_hash_arcade(char hash[33], const char* path)
 {
   /* arcade hash is just the hash of the filename (no extension) - the cores are pretty stringent about having the right ROM data */
@@ -1604,7 +1620,6 @@ int rc_hash_generate_from_buffer(char hash[33], int console_id, const uint8_t* b
       return rc_hash_error(message);
     }
 
-    case RC_CONSOLE_AMSTRAD_PC:
     case RC_CONSOLE_APPLE_II:
     case RC_CONSOLE_ATARI_2600:
     case RC_CONSOLE_ATARI_JAGUAR:
@@ -1631,6 +1646,10 @@ int rc_hash_generate_from_buffer(char hash[33], int console_id, const uint8_t* b
     case RC_CONSOLE_VIRTUAL_BOY:
     case RC_CONSOLE_WONDERSWAN:
       return rc_hash_buffer(hash, buffer, buffer_size);
+
+    case RC_CONSOLE_AMSTRAD_PC:
+      /* ignore the first 0x30 bytes of the dsk */
+      return rc_hash_amstrad_cpc(hash, buffer, buffer_size);
 
     case RC_CONSOLE_ARDUBOY:
       /* https://en.wikipedia.org/wiki/Intel_HEX */
@@ -1920,7 +1939,6 @@ int rc_hash_generate_from_file(char hash[33], int console_id, const char* path)
       /* generic whole-file hash - don't buffer */
       return rc_hash_whole_file(hash, path);
 
-    case RC_CONSOLE_AMSTRAD_PC:
     case RC_CONSOLE_APPLE_II:
     case RC_CONSOLE_MSX:
     case RC_CONSOLE_PC8800:
@@ -1929,6 +1947,13 @@ int rc_hash_generate_from_file(char hash[33], int console_id, const char* path)
         return rc_hash_generate_from_playlist(hash, console_id, path);
 
       return rc_hash_whole_file(hash, path);
+
+    case RC_CONSOLE_AMSTRAD_PC:
+      /* additional logic whole-file hash with m3u support - buffer then call rc_hash_generate_from_buffer */
+      if (rc_path_compare_extension(path, "m3u"))
+        return rc_hash_generate_from_playlist(hash, console_id, path);
+
+      return rc_hash_buffered_file(hash, console_id, path);
 
     case RC_CONSOLE_ARDUBOY:
     case RC_CONSOLE_ATARI_7800:
@@ -2014,6 +2039,7 @@ static void rc_hash_iterator_append_console(struct rc_hash_iterator* iterator, u
 
 static void rc_hash_initialize_dsk_iterator(struct rc_hash_iterator* iterator, const char* path)
 {
+  char header[128] = "";
   size_t size = iterator->buffer_size;
   if (size == 0)
   {
@@ -2021,10 +2047,25 @@ static void rc_hash_initialize_dsk_iterator(struct rc_hash_iterator* iterator, c
     void* file = rc_file_open(path);
     if (file)
     {
+      rc_file_seek(file, 0, SEEK_SET);
+      rc_file_read(file, header, sizeof(header));
+
       rc_file_seek(file, 0, SEEK_END);
       size = (size_t)rc_file_tell(file);
       rc_file_close(file);
     }
+  }
+  else
+  {
+    memcpy(header, iterator->buffer, sizeof(header));
+  }
+
+  /* https://www.cpcwiki.eu/index.php/Format:DSK_disk_image_file_format#Disc_Information_block */
+  if (memcmp(header, "EXTENDED CPC DSK", 16) == 0 ||
+      memcmp(header, "MV - CPC", 8) == 0)
+  {
+    rc_hash_iterator_append_console(iterator, RC_CONSOLE_AMSTRAD_PC);
+    return;
   }
 
   if (size == 512 * 9 * 80) /* 360KB */
@@ -2061,7 +2102,6 @@ static void rc_hash_initialize_dsk_iterator(struct rc_hash_iterator* iterator, c
 
   /* check MSX first, as Apple II isn't supported by RetroArch, and RAppleWin won't use the iterator */
   rc_hash_iterator_append_console(iterator, RC_CONSOLE_MSX);
-  rc_hash_iterator_append_console(iterator, RC_CONSOLE_AMSTRAD_PC);
   rc_hash_iterator_append_console(iterator, RC_CONSOLE_APPLE_II);
 }
 

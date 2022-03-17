@@ -201,6 +201,23 @@ uint8_t* generate_nds_file(size_t mb, unsigned arm9_size, unsigned arm7_size, si
   return image;
 }
 
+uint8_t* generate_amstrad_cpc_dsk(size_t size, int ext_header)
+{
+  uint8_t* image;
+  image = (uint8_t*)calloc(size, 1);
+  if (image != NULL)
+  {
+    const char header[] = "MV - CPCEMU Disk-File\r\nDisk-Info\r\nWin APE 32 1.0";
+    const char header_ext[] = "EXTENDED CPC DSK File\r\nDisk-Info\r\nCPDRead v3.2.4";
+
+    memcpy(&image[0], ext_header ? header_ext : header, 0x30);
+
+    fill_image(&image[0x30], size - 0x30);
+  }
+
+  return image;
+}
+
 uint8_t* generate_atari_7800_file(size_t kb, int with_header, size_t* image_size)
 {
   uint8_t* image;

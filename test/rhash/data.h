@@ -19,6 +19,7 @@ uint8_t* generate_pcfx_bin(unsigned binary_sectors, size_t* image_size);
 uint8_t* generate_psx_bin(const char* binary_name, unsigned binary_size, size_t* image_size);
 uint8_t* generate_ps2_bin(const char* binary_name, unsigned binary_size, size_t* image_size);
 
+uint8_t* generate_amstrad_cpc_dsk(size_t size, int ext_header);
 uint8_t* generate_atari_7800_file(size_t kb, int with_header, size_t* image_size);
 uint8_t* generate_nes_file(size_t kb, int with_header, size_t* image_size);
 uint8_t* generate_fds_file(size_t sides, int with_header, size_t* image_size);

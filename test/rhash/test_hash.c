@@ -321,6 +321,99 @@ static void test_hash_3do_long_directory()
 
 /* ========================================================================= */
 
+static void test_hash_amstrad_cpc()
+{
+  const char* filename = "test.dsk";
+  const size_t image_size = 194816;
+  uint8_t* image = generate_amstrad_cpc_dsk(image_size, 0);
+  char hash_file[33], hash_iterator[33];
+  const char* expected_hash = "392440d2b24aa359f290a7e4ae2d358e";
+
+  mock_file(0, filename, image, image_size);
+
+  /* test file hash */
+  int result_file = rc_hash_generate_from_file(hash_file, RC_CONSOLE_AMSTRAD_PC, filename);
+
+  /* test file identification from iterator */
+  int result_iterator;
+  struct rc_hash_iterator iterator;
+
+  rc_hash_initialize_iterator(&iterator, filename, NULL, 0);
+  result_iterator = rc_hash_iterate(hash_iterator, &iterator);
+  rc_hash_destroy_iterator(&iterator);
+
+  /* validation */
+  ASSERT_NUM_EQUALS(result_file, 1);
+  ASSERT_STR_EQUALS(hash_file, expected_hash);
+
+  ASSERT_NUM_EQUALS(result_iterator, 1);
+  ASSERT_STR_EQUALS(hash_iterator, expected_hash);
+}
+
+static void test_hash_amstrad_cpc_ext()
+{
+  const char* filename = "test.dsk";
+  const size_t image_size = 194816;
+  uint8_t* image = generate_amstrad_cpc_dsk(image_size, 1);
+  char hash_file[33], hash_iterator[33];
+  const char* expected_hash = "392440d2b24aa359f290a7e4ae2d358e";
+
+  mock_file(0, filename, image, image_size);
+
+  /* test file hash */
+  int result_file = rc_hash_generate_from_file(hash_file, RC_CONSOLE_AMSTRAD_PC, filename);
+
+  /* test file identification from iterator */
+  int result_iterator;
+  struct rc_hash_iterator iterator;
+
+  rc_hash_initialize_iterator(&iterator, filename, NULL, 0);
+  result_iterator = rc_hash_iterate(hash_iterator, &iterator);
+  rc_hash_destroy_iterator(&iterator);
+
+  /* validation */
+  ASSERT_NUM_EQUALS(result_file, 1);
+  ASSERT_STR_EQUALS(hash_file, expected_hash);
+
+  ASSERT_NUM_EQUALS(result_iterator, 1);
+  ASSERT_STR_EQUALS(hash_iterator, expected_hash);
+}
+
+static void test_hash_amstrad_cpc_m3u()
+{
+  const char* filename = "test.dsk";
+  const char* m3u_filename = "test.m3u";
+  uint8_t* m3u_contents = (uint8_t*)filename;
+  const size_t m3u_size = strlen(filename);
+  const size_t image_size = 194816;
+  uint8_t* image = generate_amstrad_cpc_dsk(image_size, 1);
+  char hash_file[33], hash_iterator[33];
+  const char* expected_hash = "392440d2b24aa359f290a7e4ae2d358e";
+
+  mock_file(0, filename, image, image_size);
+  mock_file(1, m3u_filename, m3u_contents, m3u_size);
+
+  /* test file hash */
+  int result_file = rc_hash_generate_from_file(hash_file, RC_CONSOLE_AMSTRAD_PC, filename);
+
+  /* test file identification from iterator */
+  int result_iterator;
+  struct rc_hash_iterator iterator;
+
+  rc_hash_initialize_iterator(&iterator, filename, NULL, 0);
+  result_iterator = rc_hash_iterate(hash_iterator, &iterator);
+  rc_hash_destroy_iterator(&iterator);
+
+  /* validation */
+  ASSERT_NUM_EQUALS(result_file, 1);
+  ASSERT_STR_EQUALS(hash_file, expected_hash);
+
+  ASSERT_NUM_EQUALS(result_iterator, 1);
+  ASSERT_STR_EQUALS(hash_iterator, expected_hash);
+}
+
+/* ========================================================================= */
+
 static void test_hash_arduboy()
 {
   char hash_file[33], hash_iterator[33];
@@ -1498,8 +1591,9 @@ void test_hash(void) {
   TEST(test_hash_3do_long_directory);
 
   /* Amstrad CPC */
-  TEST_PARAMS4(test_hash_full_file, RC_CONSOLE_AMSTRAD_PC, "test.dsk", 194816, "9d616e4ad3f16966f61422c57e22aadd");
-  TEST_PARAMS4(test_hash_m3u, RC_CONSOLE_AMSTRAD_PC, "test.dsk", 194816, "9d616e4ad3f16966f61422c57e22aadd");
+  TEST(test_hash_amstrad_cpc);
+  TEST(test_hash_amstrad_cpc_ext);
+  TEST(test_hash_amstrad_cpc_m3u);
 
   /* Apple II */
   TEST_PARAMS4(test_hash_full_file, RC_CONSOLE_APPLE_II, "test.dsk", 143360, "88be638f4d78b4072109e55f13e8a0ac");
