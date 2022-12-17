@@ -15,10 +15,8 @@ ifeq ($(ARCH),)
     UNAME := $(shell uname -s)
     ifeq ($(findstring MINGW64, $(UNAME)), MINGW64)
         ARCH=x64
-        CC=gcc
     else ifeq ($(findstring MINGW32, $(UNAME)), MINGW32)
         ARCH=x86
-        CC=gcc
     else
         $(error Could not determine ARCH)
     endif

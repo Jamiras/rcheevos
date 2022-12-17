@@ -118,7 +118,7 @@ jobs:
         echo "This is an echo" $PATH
         PATH=$PATH:/C/ProgramData/chocolatey/lib/mingw/tools/install/mingw64/bin
         echo "This is another echo" $PATH
-        make ARCH=x64 BUILD=c89 test
+        make ARCH=x64 BUILD=c89 CC=gcc test
       working-directory: test
     - name: Run tests
       run: ./test.exe
