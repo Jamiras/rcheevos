@@ -106,7 +106,11 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v2
-#     - name: Install MinGW
+    - name: Install MinGW
+      run: |
+        echo $GITHUB_PATH
+        echo "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin" >> $GITHUB_PATH
+        echo $GITHUB_PATH
 #      uses: egor-tensin/setup-mingw@v2
     - name: Build
       run: make ARCH=x64 BUILD=c89 test
