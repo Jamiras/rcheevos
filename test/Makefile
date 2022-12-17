@@ -11,8 +11,8 @@ RC_API_SRC=../src/rapi
 LUA_SRC=lua/src
 
 # default parameter values
-$(info GITHUB_PATH=$GITHUB_PATH)
-$(info PATH=$PATH)
+$(info GITHUB_PATH=$(GITHUB_PATH))
+$(info PATH=$(PATH))
 ifeq ($(ARCH),)
     UNAME := $(shell uname -s)
     ifeq ($(findstring MINGW64, $(UNAME)), MINGW64)
