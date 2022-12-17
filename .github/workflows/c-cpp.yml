@@ -113,9 +113,9 @@ jobs:
       uses: actions/checkout@v2
     - name: Build
       run: |
-        echo $env:GITHUB_PATH
-        Add-Content $env:GITHUB_PATH "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin"
-        echo $env:GITHUB_PATH
+        echo "$PATH"
+        echo "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin" >> $GITHUB_PATH
+        echo "$PATH"
         make ARCH=x64 BUILD=c89 test
       working-directory: test
     - name: Run tests
