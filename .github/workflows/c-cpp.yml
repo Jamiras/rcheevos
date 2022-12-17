@@ -114,6 +114,7 @@ jobs:
     - name: Build
       shell: bash
       run: |
+        ls -l /C/ProgramData/chocolatey/lib/mingw/tools/install/mingw64/bin
         echo "This is an echo" $PATH
         PATH=$PATH:/C/ProgramData/chocolatey/lib/mingw/tools/install/mingw64/bin
         echo "This is another echo" $PATH
