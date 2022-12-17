@@ -8,6 +8,7 @@ on:
 
 jobs:
   linux-x86:
+    if: ${{ false }}  # disable for now
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
@@ -24,6 +25,7 @@ jobs:
       working-directory: test
 
   linux-x64:
+    if: ${{ false }}  # disable for now
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
@@ -45,6 +47,7 @@ jobs:
   # RetroArch compiles with gcc-8, gnu99, and a different set of warnings.
   # Attempt to catch issues caused by those discrepencies.
   linux-x64-retroarch:
+    if: ${{ false }}  # disable for now
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
@@ -67,6 +70,7 @@ jobs:
       working-directory: test
       
   linux-x64-lua:
+    if: ${{ false }}  # disable for now
     runs-on: ubuntu-latest
     steps:
     - name: Checkout
@@ -86,6 +90,7 @@ jobs:
       working-directory: test
 
   windows-x64-msbuild:
+    if: ${{ false }}  # disable for now
     runs-on: windows-latest
     steps:
     - name: Checkout
@@ -108,9 +113,9 @@ jobs:
       uses: actions/checkout@v2
     - name: Build
       run: |
-        echo $GITHUB_PATH
-        echo "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin" >> $GITHUB_PATH
-        echo $GITHUB_PATH
+        echo $env:GITHUB_PATH
+        Add-Content $env:GITHUB_PATH "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin"
+        echo $env:GITHUB_PATH
         make ARCH=x64 BUILD=c89 test
       working-directory: test
     - name: Run tests
