@@ -112,6 +112,7 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v2
     - name: Build
+      shell: bash
       run: |
         echo "This is an echo" $GITHUB_PATH
         echo "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin" >> $GITHUB_PATH
