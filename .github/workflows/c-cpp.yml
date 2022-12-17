@@ -114,9 +114,7 @@ jobs:
     - name: Build
       run: |
         echo "This is an echo"
-        type "$GITHUB_PATH"
         echo "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
-        type "$GITHUB_PATH"
         echo "This is another echo"
         make ARCH=x64 BUILD=c89 test
       working-directory: test
