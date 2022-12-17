@@ -115,7 +115,7 @@ jobs:
       shell: bash
       run: |
         echo "This is an echo" $PATH
-        echo "C:\ProgramData\chocolatey\lib\mingw\tools\install\mingw64\bin" >> $GITHUB_PATH
+        PATH=$PATH:/C/ProgramData/chocolatey/lib/mingw/tools/install/mingw64/bin
         echo "This is another echo" $PATH
         make ARCH=x64 BUILD=c89 test
       working-directory: test
