@@ -112,10 +112,7 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v2
     - name: Build
-#      shell: bash
-      run: |
-#        PATH=$PATH:/C/ProgramData/chocolatey/lib/mingw/tools/install/mingw64/bin
-        make ARCH=x64 BUILD=c89 CC=gcc test
+      run: make ARCH=x64 BUILD=c89 CC=gcc test
       working-directory: test
     - name: Run tests
       run: ./test.exe
