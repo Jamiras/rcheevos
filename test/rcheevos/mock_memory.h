@@ -4,7 +4,7 @@
 #include <stdint.h>
 #include <string.h>
 
-typedef struct {
+typedef struct memory_t {
   uint8_t* ram;
   uint32_t size;
 }
