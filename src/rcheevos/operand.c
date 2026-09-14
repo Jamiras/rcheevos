@@ -319,13 +319,30 @@ int rc_operands_are_equal(const rc_operand_t* left, const rc_operand_t* right) {
     case RC_OPERAND_FP:
       return (left->value.dbl == right->value.dbl);
     case RC_OPERAND_RECALL:
-      return (left->value.memref == right->value.memref);
+      if (left->memref_access_type != right->memref_access_type)
+        return 0;
+      switch (left->memref_access_type) {
+        case RC_OPERAND_CONST:
+          return (left->value.num == right->value.num);
+        case RC_OPERAND_FP:
+          return (left->value.dbl == right->value.dbl);
+        default:
+          if (!left->value.memref || !right->value.memref) /* could not find remember */
+            return 0;
+          break; /* fallthrough to memref comparison */
+      }
     default:
       break;
   }
 
   /* comparing two memrefs - look for exact matches on type and size */
-  if (left->size != right->size || left->value.memref->value.memref_type != right->value.memref->value.memref_type)
+  if (left->size != right->size)
+    return 0;
+
+  if (left->value.memref == right->value.memref) /* quick match if pointing to same memref */
+    return 1;
+
+  if (left->value.memref->value.memref_type != right->value.memref->value.memref_type)
     return 0;
 
   switch (left->value.memref->value.memref_type) {
