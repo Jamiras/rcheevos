@@ -511,17 +511,27 @@ static void rc_libretro_memory_init_without_regions(rc_libretro_memory_regions_t
     rc_libretro_memory_register_region(regions, RC_MEMORY_TYPE_SAVE_RAM, info.data, info.size, description);
 }
 
-static const struct retro_memory_descriptor* rc_libretro_memory_get_descriptor(const struct retro_memory_map* mmap, uint32_t real_address, size_t* offset)
+static const struct retro_memory_descriptor* rc_libretro_memory_get_descriptor(const struct retro_memory_map* mmap,
+                                                                               uint32_t real_address, size_t console_region_size, size_t* offset)
 {
   const struct retro_memory_descriptor* desc = mmap->descriptors;
   const struct retro_memory_descriptor* end = desc + mmap->num_descriptors;
+  const struct retro_memory_descriptor* inner_desc = NULL;
 
   for (; desc < end; desc++) {
     if (desc->select == 0) {
-      /* if select is 0, attempt to explcitly match the address */
-      if (real_address >= desc->start && real_address < desc->start + desc->len) {
-        *offset = real_address - desc->start;
-        return desc;
+      /* if select is 0, attempt to explcitly match the address. */
+      const size_t desc_end = desc->start + desc->len;
+      if (real_address >= desc->start) {
+        if (real_address < desc_end) {
+          /* found a descriptor containing the real_address, use it. */
+          *offset = real_address - desc->start;
+          return desc;
+        }
+      } else if (desc_end <= real_address + console_region_size) {
+        /* found a descriptor inside the target range. use it if we can't find one containing the start of the range. */
+        if (!inner_desc || desc->start < inner_desc->start)
+          inner_desc = desc;
       }
     }
     else {
@@ -552,7 +562,7 @@ static const struct retro_memory_descriptor* rc_libretro_memory_get_descriptor(c
   }
 
   *offset = 0;
-  return NULL;
+  return inner_desc;
 }
 
 static void rc_libretro_memory_init_from_memory_map(rc_libretro_memory_regions_t* regions, const struct retro_memory_map* mmap,
@@ -569,9 +579,10 @@ static void rc_libretro_memory_init_from_memory_map(rc_libretro_memory_regions_t
     size_t console_region_size = console_region->end_address - console_region->start_address + 1;
     uint32_t real_address = console_region->real_address;
     uint32_t disconnect_size = 0;
+    size_t select = 0;
 
     while (console_region_size > 0) {
-      const struct retro_memory_descriptor* desc = rc_libretro_memory_get_descriptor(mmap, real_address, &offset);
+      const struct retro_memory_descriptor* desc = rc_libretro_memory_get_descriptor(mmap, real_address, console_region_size, &offset);
       if (!desc) {
         if (rc_libretro_verbose_message_callback && console_region->type != RC_MEMORY_TYPE_UNUSED) {
           snprintf(description, sizeof(description), "Could not map region starting at $%06X",
@@ -589,6 +600,14 @@ static void rc_libretro_memory_init_from_memory_map(rc_libretro_memory_regions_t
 
         rc_libretro_memory_register_region(regions, console_region->type, NULL, console_region_size, "null filler");
         break;
+      }
+
+      select = desc->select ? desc->select : (size_t)-1;
+      if ((desc->start & select) > real_address) {
+        size_t fill_size = (desc->start - real_address) & select;
+        rc_libretro_memory_register_region(regions, console_region->type, NULL, fill_size, "null filler");
+        real_address += (uint32_t)fill_size;
+        console_region_size -= (uint32_t)fill_size;
       }
 
       snprintf(description, sizeof(description), "descriptor %u, offset 0x%06X%s",
