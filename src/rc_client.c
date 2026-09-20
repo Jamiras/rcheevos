@@ -91,6 +91,7 @@ static void rc_client_reschedule_callback(rc_client_t* client, rc_client_schedul
 static void rc_client_award_achievement_retry(rc_client_scheduled_callback_data_t* callback_data, rc_client_t* client, rc_clock_t now);
 static int rc_client_is_award_achievement_pending(const rc_client_t* client, uint32_t achievement_id);
 static void rc_client_submit_leaderboard_entry_retry(rc_client_scheduled_callback_data_t* callback_data, rc_client_t* client, rc_clock_t now);
+static uint32_t rc_client_read_modified_memory_helper(uint32_t address, uint8_t* buffer, uint32_t num_bytes, void* ud);
 
 /* ===== natvis extensions ===== */
 
@@ -178,7 +179,6 @@ rc_client_t* rc_client_create(rc_client_read_memory_func_t read_memory_function,
   client->callbacks.server_call = server_call_function;
   client->callbacks.event_handler = rc_client_natvis_helper;
   client->callbacks.event_handler = rc_client_dummy_event_handler;
-  rc_client_set_legacy_peek(client, RC_CLIENT_LEGACY_PEEK_AUTO);
   rc_client_set_get_time_millisecs_function(client, NULL);
 
   rc_mutex_init(&client->state.mutex);
@@ -950,14 +950,14 @@ static void rc_client_subset_get_user_game_summary(const rc_client_t* client,
 
   for (; achievement < stop; ++achievement) {
     switch (achievement->public_.category) {
-      case RC_CLIENT_ACHIEVEMENT_CATEGORY_CORE:
+      case RC_CLIENT_ACHIEVEMENT_CATEGORY_PROMOTED:
         if (achievement->public_.id >= RC_CLIENT_ACHIEVEMENT_WARNING_ID) {
           /* ignore warning achievements */
           continue;
         }
 
-        ++summary->num_core_achievements;
-        summary->points_core += achievement->public_.points;
+        ++summary->num_promoted_achievements;
+        summary->points_available += achievement->public_.points;
 
         if (achievement->public_.unlocked & unlock_bit) {
           ++summary->num_unlocked_achievements;
@@ -987,8 +987,8 @@ static void rc_client_subset_get_user_game_summary(const rc_client_t* client,
 
         break;
 
-      case RC_CLIENT_ACHIEVEMENT_CATEGORY_UNOFFICIAL:
-        ++summary->num_unofficial_achievements;
+      case RC_CLIENT_ACHIEVEMENT_CATEGORY_UNPROMOTED:
+        ++summary->num_unpromoted_achievements;
         break;
 
       default:
@@ -998,7 +998,7 @@ static void rc_client_subset_get_user_game_summary(const rc_client_t* client,
 
   rc_mutex_unlock((rc_mutex_t*)&client->state.mutex); /* remove const cast for mutex access */
 
-  if (summary->num_unlocked_achievements == summary->num_core_achievements)
+  if (summary->num_unlocked_achievements == summary->num_promoted_achievements)
     summary->completed_time = last_unlock_time;
 
   if ((first_win_time || num_win_achievements == 0) && num_unlocked_progression_achievements == num_progression_achievements)
@@ -1741,7 +1741,7 @@ static void rc_client_log_active_assets(rc_client_t* client)
     ach = subset->achievements;
     ach_stop = ach + subset->public_.num_achievements;
     for (; ach < ach_stop; ++ach) {
-      if (ach->public_.category == RC_CLIENT_ACHIEVEMENT_CATEGORY_CORE) {
+      if (ach->public_.category == RC_CLIENT_ACHIEVEMENT_CATEGORY_PROMOTED) {
         ++num_achievements;
         if (ach->public_.state == RC_CLIENT_ACHIEVEMENT_STATE_ACTIVE)
           ++num_active_achievements;
@@ -2056,10 +2056,10 @@ static void rc_client_copy_achievements(rc_client_load_state_t* load_state,
 
   stop = achievement_definitions + num_achievements;
 
-  /* if not testing unofficial, filter them out */
-  if (!load_state->client->state.unofficial_enabled) {
+  /* if not testing unpromoted, filter them out */
+  if (!load_state->client->state.unpromoted_enabled) {
     for (read = achievement_definitions; read < stop; ++read) {
-      if (read->category != RC_ACHIEVEMENT_CATEGORY_CORE)
+      if (read->category != RC_ACHIEVEMENT_CATEGORY_PROMOTED)
         --num_achievements;
     }
 
@@ -2085,7 +2085,7 @@ static void rc_client_copy_achievements(rc_client_load_state_t* load_state,
 
   /* copy the achievement data */
   for (read = achievement_definitions; read < stop; ++read) {
-    if (read->category != RC_ACHIEVEMENT_CATEGORY_CORE && !load_state->client->state.unofficial_enabled)
+    if (read->category != RC_ACHIEVEMENT_CATEGORY_PROMOTED && !load_state->client->state.unpromoted_enabled)
       continue;
 
     achievement->public_.title = rc_buffer_strcpy(buffer, read->title);
@@ -2093,8 +2093,8 @@ static void rc_client_copy_achievements(rc_client_load_state_t* load_state,
     snprintf(achievement->public_.badge_name, sizeof(achievement->public_.badge_name), "%s", read->badge_name);
     achievement->public_.id = read->id;
     achievement->public_.points = read->points;
-    achievement->public_.category = (read->category != RC_ACHIEVEMENT_CATEGORY_CORE) ?
-      RC_CLIENT_ACHIEVEMENT_CATEGORY_UNOFFICIAL : RC_CLIENT_ACHIEVEMENT_CATEGORY_CORE;
+    achievement->public_.category = (read->category != RC_ACHIEVEMENT_CATEGORY_PROMOTED) ?
+      RC_CLIENT_ACHIEVEMENT_CATEGORY_UNPROMOTED : RC_CLIENT_ACHIEVEMENT_CATEGORY_PROMOTED;
     achievement->public_.rarity = read->rarity;
     achievement->public_.rarity_hardcore = read->rarity_hardcore;
     achievement->public_.type = read->type; /* assert: mapping is 1:1 */
@@ -4119,8 +4119,8 @@ static void rc_client_update_achievement_display_information(rc_client_t* client
   }
   else {
     /* active achievement */
-    new_bucket = (achievement->public_.category == RC_CLIENT_ACHIEVEMENT_CATEGORY_UNOFFICIAL) ?
-        RC_CLIENT_ACHIEVEMENT_BUCKET_UNOFFICIAL : RC_CLIENT_ACHIEVEMENT_BUCKET_LOCKED;
+    new_bucket = (achievement->public_.category == RC_CLIENT_ACHIEVEMENT_CATEGORY_UNPROMOTED) ?
+        RC_CLIENT_ACHIEVEMENT_BUCKET_UNPROMOTED : RC_CLIENT_ACHIEVEMENT_BUCKET_LOCKED;
 
     if (achievement->trigger) {
       if (achievement->trigger->measured_target) {
@@ -4168,7 +4168,7 @@ static const char* rc_client_get_achievement_bucket_label(uint8_t bucket_type)
     case RC_CLIENT_ACHIEVEMENT_BUCKET_LOCKED: return "Locked";
     case RC_CLIENT_ACHIEVEMENT_BUCKET_UNLOCKED: return "Unlocked";
     case RC_CLIENT_ACHIEVEMENT_BUCKET_UNSUPPORTED: return "Unsupported";
-    case RC_CLIENT_ACHIEVEMENT_BUCKET_UNOFFICIAL: return "Unofficial";
+    case RC_CLIENT_ACHIEVEMENT_BUCKET_UNPROMOTED: return "Unpromoted";
     case RC_CLIENT_ACHIEVEMENT_BUCKET_RECENTLY_UNLOCKED: return "Recently Unlocked";
     case RC_CLIENT_ACHIEVEMENT_BUCKET_ACTIVE_CHALLENGE: return "Active Challenges";
     case RC_CLIENT_ACHIEVEMENT_BUCKET_ALMOST_THERE: return "Almost There";
@@ -4188,7 +4188,7 @@ static const char* rc_client_get_subset_achievement_bucket_label(uint8_t bucket_
     case RC_CLIENT_ACHIEVEMENT_BUCKET_LOCKED: ptr = &subset->locked_label; break;
     case RC_CLIENT_ACHIEVEMENT_BUCKET_UNLOCKED: ptr = &subset->unlocked_label; break;
     case RC_CLIENT_ACHIEVEMENT_BUCKET_UNSUPPORTED: ptr = &subset->unsupported_label; break;
-    case RC_CLIENT_ACHIEVEMENT_BUCKET_UNOFFICIAL: ptr = &subset->unofficial_label; break;
+    case RC_CLIENT_ACHIEVEMENT_BUCKET_UNPROMOTED: ptr = &subset->unpromoted_label; break;
     default: return rc_client_get_achievement_bucket_label(bucket_type);
   }
 
@@ -4293,7 +4293,7 @@ rc_client_achievement_list_t* rc_client_create_subset_achievement_list(rc_client
   };
   const uint8_t subset_bucket_order[] = {
     RC_CLIENT_ACHIEVEMENT_BUCKET_LOCKED,
-    RC_CLIENT_ACHIEVEMENT_BUCKET_UNOFFICIAL,
+    RC_CLIENT_ACHIEVEMENT_BUCKET_UNPROMOTED,
     RC_CLIENT_ACHIEVEMENT_BUCKET_UNSUPPORTED,
     RC_CLIENT_ACHIEVEMENT_BUCKET_UNLOCKED
   };
@@ -4856,9 +4856,9 @@ static void rc_client_award_achievement(rc_client_t* client, rc_client_achieveme
     return;
   }
 
-  /* can't unlock unofficial achievements on the server */
-  if (achievement->public_.category != RC_CLIENT_ACHIEVEMENT_CATEGORY_CORE) {
-    RC_CLIENT_LOG_INFO_FORMATTED(client, "Unlocked unofficial achievement %u: %s", achievement->public_.id, achievement->public_.title);
+  /* can't unlock unpromoted achievements on the server */
+  if (achievement->public_.category != RC_CLIENT_ACHIEVEMENT_CATEGORY_PROMOTED) {
+    RC_CLIENT_LOG_INFO_FORMATTED(client, "Unlocked unpromoted achievement %u: %s", achievement->public_.id, achievement->public_.title);
     return;
   }
 
@@ -5819,7 +5819,7 @@ static void rc_client_ping(rc_client_scheduled_callback_data_t* callback_data, r
       rc_mutex_lock(&client->state.mutex);
 
       rc_runtime_get_richpresence(&client->game->runtime, buffer, sizeof(buffer),
-          client->state.legacy_peek, client, NULL);
+          rc_client_read_modified_memory_helper, client, NULL);
 
       rc_mutex_unlock(&client->state.mutex);
     }
@@ -5878,7 +5878,7 @@ size_t rc_client_get_rich_presence_message(rc_client_t* client, char buffer[], s
   rc_mutex_lock(&client->state.mutex);
 
   result = rc_runtime_get_richpresence(&client->game->runtime, buffer, (unsigned)buffer_size,
-      client->state.legacy_peek, client, NULL);
+      rc_client_read_modified_memory_helper, client, NULL);
 
   rc_mutex_unlock(&client->state.mutex);
 
@@ -5947,85 +5947,26 @@ static void rc_client_invalidate_processing_memref(rc_client_t* client)
   client->state.processing_memref = NULL;
 }
 
-static uint32_t rc_client_peek_le(uint32_t address, uint32_t num_bytes, void* ud)
+static uint32_t RC_CCONV rc_client_read_memory_validator(uint32_t address, uint8_t* buffer, uint32_t num_bytes, void* ud)
 {
   rc_client_t* client = (rc_client_t*)ud;
-  uint32_t value = 0;
-  uint32_t num_read = 0;
 
-  /* if we know the address is out of range, and it's part of a pointer chain
-   * (processing_memref is null), don't bother processing it. */
-  if (address > client->game->max_valid_address && !client->state.processing_memref)
-    return 0;
-
-  if (num_bytes <= sizeof(value)) {
-    num_read = client->callbacks.read_memory(address, (uint8_t*)&value, num_bytes, client);
-    if (num_read == num_bytes)
-      return value;
-  }
-
+  uint32_t num_read = client->callbacks.read_memory(address, buffer, num_bytes, client);
   if (num_read < num_bytes)
     rc_client_invalidate_processing_memref(client);
 
-  return 0;
+  return num_read;
 }
 
-static uint32_t rc_client_peek(uint32_t address, uint32_t num_bytes, void* ud)
+static uint32_t RC_CCONV rc_client_read_modified_memory_helper(uint32_t address, uint8_t* buffer, uint32_t num_bytes, void* ud)
 {
   rc_client_t* client = (rc_client_t*)ud;
-  uint8_t buffer[4];
-  uint32_t num_read = 0;
 
-  /* if we know the address is out of range, and it's part of a pointer chain
-   * (processing_memref is null), don't bother processing it. */
-  if (address > client->game->max_valid_address && !client->state.processing_memref)
+  /* if the address is out of range, don't bother processing it. */
+  if (address > client->game->max_valid_address)
     return 0;
 
-  switch (num_bytes) {
-    case 1:
-      num_read = client->callbacks.read_memory(address, buffer, 1, client);
-      if (num_read == 1)
-        return buffer[0];
-      break;
-    case 2:
-      num_read = client->callbacks.read_memory(address, buffer, 2, client);
-      if (num_read == 2)
-        return buffer[0] | (buffer[1] << 8);
-      break;
-    case 3:
-      num_read = client->callbacks.read_memory(address, buffer, 3, client);
-      if (num_read == 3)
-        return buffer[0] | (buffer[1] << 8) | (buffer[2] << 16);
-      break;
-    case 4:
-      num_read = client->callbacks.read_memory(address, buffer, 4, client);
-      if (num_read == 4)
-        return buffer[0] | (buffer[1] << 8) | (buffer[2] << 16) | (buffer[3] << 24);
-      break;
-    default:
-      break;
-  }
-
-  if (num_read < num_bytes)
-    rc_client_invalidate_processing_memref(client);
-
-  return 0;
-}
-
-void rc_client_set_legacy_peek(rc_client_t* client, int method)
-{
-  if (method == RC_CLIENT_LEGACY_PEEK_AUTO) {
-    union {
-      uint32_t whole;
-      uint8_t parts[4];
-    } u;
-    u.whole = 1;
-    method = (u.parts[0] == 1) ?
-        RC_CLIENT_LEGACY_PEEK_LITTLE_ENDIAN_READS : RC_CLIENT_LEGACY_PEEK_CONSTRUCTED;
-  }
-
-  client->state.legacy_peek = (method == RC_CLIENT_LEGACY_PEEK_LITTLE_ENDIAN_READS) ?
-      rc_client_peek_le : rc_client_peek;
+  return client->callbacks.read_memory(address, buffer, num_bytes, client);
 }
 
 int rc_client_is_processing_required(rc_client_t* client)
@@ -6066,7 +6007,7 @@ static void rc_client_update_memref_values(rc_client_t* client) {
       /* if processing_memref is set, and the memory read fails, all dependent achievements will be disabled */
       client->state.processing_memref = memref;
 
-      value = rc_peek_value(memref->address, memref->value.size, client->state.legacy_peek, client);
+      value = rc_read_memory(memref->address, memref->value.size, rc_client_read_memory_validator, client);
 
       if (client->state.processing_memref) {
         rc_update_memref_value(&memref->value, value);
@@ -6088,8 +6029,10 @@ static void rc_client_update_memref_values(rc_client_t* client) {
       rc_modified_memref_t* modified_memref = modified_memref_list->items;
       const rc_modified_memref_t* modified_memref_stop = modified_memref + modified_memref_list->count;
 
-      for (; modified_memref < modified_memref_stop; ++modified_memref)
-        rc_update_memref_value(&modified_memref->memref.value, rc_get_modified_memref_value(modified_memref, client->state.legacy_peek, client));
+      for (; modified_memref < modified_memref_stop; ++modified_memref) {
+        rc_update_memref_value(&modified_memref->memref.value,
+            rc_get_modified_memref_value(modified_memref, rc_client_read_modified_memory_helper, client));
+      }
 
       modified_memref_list = modified_memref_list->next;
     } while (modified_memref_list);
@@ -6114,7 +6057,7 @@ static void rc_client_do_frame_process_achievements(rc_client_t* client, rc_clie
 
     old_measured_value = trigger->measured_value;
     old_state = trigger->state;
-    new_state = rc_evaluate_trigger(trigger, client->state.legacy_peek, client, NULL);
+    new_state = rc_evaluate_trigger(trigger, rc_client_read_modified_memory_helper, client, NULL);
 
     /* trigger->state doesn't actually change to RESET - RESET just serves as a notification.
      * we don't care about that particular notification, so look at the actual state. */
@@ -6325,7 +6268,7 @@ static void rc_client_do_frame_process_leaderboards(rc_client_t* client, rc_clie
     }
 
     old_state = lboard->state;
-    new_state = rc_evaluate_lboard(lboard, &leaderboard->value, client->state.legacy_peek, client, NULL);
+    new_state = rc_evaluate_lboard(lboard, &leaderboard->value, rc_client_read_modified_memory_helper, client, NULL);
 
     switch (new_state) {
       case RC_LBOARD_STATE_STARTED: /* leaderboard is running */
@@ -6532,7 +6475,7 @@ void rc_client_do_frame(rc_client_t* client)
 
     richpresence = client->game->runtime.richpresence;
     if (richpresence && richpresence->richpresence)
-      rc_update_richpresence_internal(richpresence->richpresence, client->state.legacy_peek, client);
+      rc_update_richpresence_internal(richpresence->richpresence, rc_client_read_modified_memory_helper, client);
 
     rc_mutex_unlock(&client->state.mutex);
 
@@ -7069,33 +7012,33 @@ int rc_client_get_hardcore_enabled(const rc_client_t* client)
   return client->state.hardcore;
 }
 
-void rc_client_set_unofficial_enabled(rc_client_t* client, int enabled)
+void rc_client_set_unpromoted_enabled(rc_client_t* client, int enabled)
 {
   if (!client)
     return;
 
 #ifdef RC_CLIENT_SUPPORTS_EXTERNAL
-  if (client->state.external_client && client->state.external_client->set_unofficial_enabled) {
-    client->state.external_client->set_unofficial_enabled(enabled);
+  if (client->state.external_client && client->state.external_client->set_unpromoted_enabled) {
+    client->state.external_client->set_unpromoted_enabled(enabled);
     return;
   }
 #endif
 
-  RC_CLIENT_LOG_INFO_FORMATTED(client, "Unofficial %s", enabled ? "enabled" : "disabled");
-  client->state.unofficial_enabled = enabled ? 1 : 0;
+  RC_CLIENT_LOG_INFO_FORMATTED(client, "Unpromoted %s", enabled ? "enabled" : "disabled");
+  client->state.unpromoted_enabled = enabled ? 1 : 0;
 }
 
-int rc_client_get_unofficial_enabled(const rc_client_t* client)
+int rc_client_get_unpromoted_enabled(const rc_client_t* client)
 {
   if (!client)
     return 0;
 
 #ifdef RC_CLIENT_SUPPORTS_EXTERNAL
-  if (client->state.external_client && client->state.external_client->get_unofficial_enabled)
-    return client->state.external_client->get_unofficial_enabled();
+  if (client->state.external_client && client->state.external_client->get_unpromoted_enabled)
+    return client->state.external_client->get_unpromoted_enabled();
 #endif
 
-  return client->state.unofficial_enabled;
+  return client->state.unpromoted_enabled;
 }
 
 void rc_client_set_encore_mode_enabled(rc_client_t* client, int enabled)

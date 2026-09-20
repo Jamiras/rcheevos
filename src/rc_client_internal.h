@@ -214,7 +214,7 @@ typedef struct rc_client_subset_info_t {
   const char* inactive_label;
   const char* locked_label;
   const char* unlocked_label;
-  const char* unofficial_label;
+  const char* unpromoted_label;
   const char* unsupported_label;
 
   uint8_t active;
@@ -332,7 +332,7 @@ typedef struct rc_client_state_t {
   uint8_t hardcore;
   uint8_t encore_mode;
   uint8_t spectator_mode;
-  uint8_t unofficial_enabled;
+  uint8_t unpromoted_enabled;
   uint8_t log_level;
   uint8_t user;
   uint8_t disconnect;
@@ -342,8 +342,6 @@ typedef struct rc_client_state_t {
   struct rc_client_load_state_t* load;
   struct rc_client_async_handle_t* async_handles[4];
   rc_memref_t* processing_memref;
-
-  rc_peek_t legacy_peek;
 } rc_client_state_t;
 
 struct rc_client_t {
@@ -396,14 +394,6 @@ void rc_client_add_game_hash(rc_client_t* client, const char* hash, uint32_t gam
 #endif
 void rc_client_load_unknown_game(rc_client_t* client, const char* hash);
 /* end helper functions for unit tests */
-
-enum {
-  RC_CLIENT_LEGACY_PEEK_AUTO,
-  RC_CLIENT_LEGACY_PEEK_CONSTRUCTED,
-  RC_CLIENT_LEGACY_PEEK_LITTLE_ENDIAN_READS
-};
-
-void rc_client_set_legacy_peek(rc_client_t* client, int method);
 
 void rc_client_allocate_leaderboard_tracker(rc_client_game_info_t* game, rc_client_leaderboard_info_t* leaderboard);
 void rc_client_release_leaderboard_tracker(rc_client_game_info_t* game, rc_client_leaderboard_info_t* leaderboard);

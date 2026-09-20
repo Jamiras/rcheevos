@@ -271,7 +271,7 @@ static void test_process_fetch_game_data_response_achievements() {
   ASSERT_NUM_EQUALS(achievement->id, 5501);
   ASSERT_STR_EQUALS(achievement->title, "Ach1");
   ASSERT_STR_EQUALS(achievement->description, "Desc1");
-  ASSERT_NUM_EQUALS(achievement->category, RC_ACHIEVEMENT_CATEGORY_CORE);
+  ASSERT_NUM_EQUALS(achievement->category, RC_ACHIEVEMENT_CATEGORY_PROMOTED);
   ASSERT_NUM_EQUALS(achievement->points, 5);
   ASSERT_STR_EQUALS(achievement->definition, "0=1");
   ASSERT_STR_EQUALS(achievement->author, "User1");
@@ -283,7 +283,7 @@ static void test_process_fetch_game_data_response_achievements() {
   ASSERT_NUM_EQUALS(achievement->id, 5502);
   ASSERT_STR_EQUALS(achievement->title, "Ach2");
   ASSERT_STR_EQUALS(achievement->description, "Desc2");
-  ASSERT_NUM_EQUALS(achievement->category, RC_ACHIEVEMENT_CATEGORY_CORE);
+  ASSERT_NUM_EQUALS(achievement->category, RC_ACHIEVEMENT_CATEGORY_PROMOTED);
   ASSERT_NUM_EQUALS(achievement->points, 2);
   ASSERT_STR_EQUALS(achievement->definition, "0=2");
   ASSERT_STR_EQUALS(achievement->author, "User1");
@@ -295,7 +295,7 @@ static void test_process_fetch_game_data_response_achievements() {
   ASSERT_NUM_EQUALS(achievement->id, 5503);
   ASSERT_STR_EQUALS(achievement->title, "Ach3");
   ASSERT_STR_EQUALS(achievement->description, "Desc3");
-  ASSERT_NUM_EQUALS(achievement->category, RC_ACHIEVEMENT_CATEGORY_UNOFFICIAL);
+  ASSERT_NUM_EQUALS(achievement->category, RC_ACHIEVEMENT_CATEGORY_UNPROMOTED);
   ASSERT_NUM_EQUALS(achievement->points, 0);
   ASSERT_STR_EQUALS(achievement->definition, "0=3");
   ASSERT_STR_EQUALS(achievement->author, "User2");
@@ -307,7 +307,7 @@ static void test_process_fetch_game_data_response_achievements() {
   ASSERT_NUM_EQUALS(achievement->id, 5504);
   ASSERT_STR_EQUALS(achievement->title, "Ach4");
   ASSERT_STR_EQUALS(achievement->description, "Desc4");
-  ASSERT_NUM_EQUALS(achievement->category, RC_ACHIEVEMENT_CATEGORY_CORE);
+  ASSERT_NUM_EQUALS(achievement->category, RC_ACHIEVEMENT_CATEGORY_PROMOTED);
   ASSERT_NUM_EQUALS(achievement->points, 10);
   ASSERT_STR_EQUALS(achievement->definition, "0=4");
   ASSERT_STR_EQUALS(achievement->author, "User1");
@@ -494,7 +494,7 @@ static void test_process_fetch_game_data_response_achievement_null_author()
   ASSERT_NUM_EQUALS(achievement->id, 5501);
   ASSERT_STR_EQUALS(achievement->title, "Ach1");
   ASSERT_STR_EQUALS(achievement->description, "Desc1");
-  ASSERT_NUM_EQUALS(achievement->category, RC_ACHIEVEMENT_CATEGORY_CORE);
+  ASSERT_NUM_EQUALS(achievement->category, RC_ACHIEVEMENT_CATEGORY_PROMOTED);
   ASSERT_NUM_EQUALS(achievement->points, 5);
   ASSERT_STR_EQUALS(achievement->definition, "0=1");
   ASSERT_STR_EQUALS(achievement->author, "User1");
@@ -508,7 +508,7 @@ static void test_process_fetch_game_data_response_achievement_null_author()
   ASSERT_NUM_EQUALS(achievement->id, 5502);
   ASSERT_STR_EQUALS(achievement->title, "Ach2");
   ASSERT_STR_EQUALS(achievement->description, "Desc2");
-  ASSERT_NUM_EQUALS(achievement->category, RC_ACHIEVEMENT_CATEGORY_CORE);
+  ASSERT_NUM_EQUALS(achievement->category, RC_ACHIEVEMENT_CATEGORY_PROMOTED);
   ASSERT_NUM_EQUALS(achievement->points, 2);
   ASSERT_STR_EQUALS(achievement->definition, "0=2");
   ASSERT_STR_EQUALS(achievement->author, "");
@@ -522,7 +522,7 @@ static void test_process_fetch_game_data_response_achievement_null_author()
   ASSERT_NUM_EQUALS(achievement->id, 5503);
   ASSERT_STR_EQUALS(achievement->title, "Ach3");
   ASSERT_STR_EQUALS(achievement->description, "Desc3");
-  ASSERT_NUM_EQUALS(achievement->category, RC_ACHIEVEMENT_CATEGORY_UNOFFICIAL);
+  ASSERT_NUM_EQUALS(achievement->category, RC_ACHIEVEMENT_CATEGORY_UNPROMOTED);
   ASSERT_NUM_EQUALS(achievement->points, 0);
   ASSERT_STR_EQUALS(achievement->definition, "0=3");
   ASSERT_STR_EQUALS(achievement->author, "");
@@ -536,7 +536,7 @@ static void test_process_fetch_game_data_response_achievement_null_author()
   ASSERT_NUM_EQUALS(achievement->id, 5504);
   ASSERT_STR_EQUALS(achievement->title, "Ach4");
   ASSERT_STR_EQUALS(achievement->description, "Desc4");
-  ASSERT_NUM_EQUALS(achievement->category, RC_ACHIEVEMENT_CATEGORY_CORE);
+  ASSERT_NUM_EQUALS(achievement->category, RC_ACHIEVEMENT_CATEGORY_PROMOTED);
   ASSERT_NUM_EQUALS(achievement->points, 10);
   ASSERT_STR_EQUALS(achievement->definition, "0=4");
   ASSERT_STR_EQUALS(achievement->author, "User1");
@@ -547,6 +547,21 @@ static void test_process_fetch_game_data_response_achievement_null_author()
   ASSERT_TIMET_EQUALS(achievement->updated, 1504474554);
 
   rc_api_destroy_fetch_game_data_response(&fetch_game_data_response);
+}
+
+static void test_process_fetch_game_data_response_achievement_null_title() {
+  rc_api_fetch_game_data_response_t response;
+  const char* server_response = "{\"Success\":true,\"PatchData\":{"
+    "\"ID\":20,\"Title\":\"Game\",\"ConsoleID\":19,\"ImageIcon\":\"/Images/112233.png\","
+    "\"Achievements\":[{\"ID\":1,\"Title\":null,\"Description\":\"Desc\",\"Flags\":3,\"Points\":5,"
+    "\"MemAddr\":\"0=1\",\"Author\":\"User\",\"BadgeName\":\"00234\","
+    "\"Created\":1367266583,\"Modified\":1376929305}],\"Leaderboards\":[]}}";
+
+  memset(&response, 0, sizeof(response));
+
+  ASSERT_NUM_EQUALS(rc_api_process_fetch_game_data_response(&response, server_response), RC_MISSING_VALUE);
+
+  rc_api_destroy_fetch_game_data_response(&response);
 }
 
 static void test_process_fetch_game_data_response_leaderboards() {
@@ -898,7 +913,7 @@ static void test_process_fetch_game_sets_response_achievements() {
   ASSERT_NUM_EQUALS(achievement->id, 5501);
   ASSERT_STR_EQUALS(achievement->title, "Ach1");
   ASSERT_STR_EQUALS(achievement->description, "Desc1");
-  ASSERT_NUM_EQUALS(achievement->category, RC_ACHIEVEMENT_CATEGORY_CORE);
+  ASSERT_NUM_EQUALS(achievement->category, RC_ACHIEVEMENT_CATEGORY_PROMOTED);
   ASSERT_NUM_EQUALS(achievement->points, 5);
   ASSERT_STR_EQUALS(achievement->definition, "0=1");
   ASSERT_STR_EQUALS(achievement->author, "User1");
@@ -913,7 +928,7 @@ static void test_process_fetch_game_sets_response_achievements() {
   ASSERT_NUM_EQUALS(achievement->id, 5502);
   ASSERT_STR_EQUALS(achievement->title, "Ach2");
   ASSERT_STR_EQUALS(achievement->description, "Desc2");
-  ASSERT_NUM_EQUALS(achievement->category, RC_ACHIEVEMENT_CATEGORY_CORE);
+  ASSERT_NUM_EQUALS(achievement->category, RC_ACHIEVEMENT_CATEGORY_PROMOTED);
   ASSERT_NUM_EQUALS(achievement->points, 2);
   ASSERT_STR_EQUALS(achievement->definition, "0=2");
   ASSERT_STR_EQUALS(achievement->author, "User1");
@@ -928,7 +943,7 @@ static void test_process_fetch_game_sets_response_achievements() {
   ASSERT_NUM_EQUALS(achievement->id, 5503);
   ASSERT_STR_EQUALS(achievement->title, "Ach3");
   ASSERT_STR_EQUALS(achievement->description, "Desc3");
-  ASSERT_NUM_EQUALS(achievement->category, RC_ACHIEVEMENT_CATEGORY_UNOFFICIAL);
+  ASSERT_NUM_EQUALS(achievement->category, RC_ACHIEVEMENT_CATEGORY_UNPROMOTED);
   ASSERT_NUM_EQUALS(achievement->points, 0);
   ASSERT_STR_EQUALS(achievement->definition, "0=3");
   ASSERT_STR_EQUALS(achievement->author, "User2");
@@ -943,7 +958,7 @@ static void test_process_fetch_game_sets_response_achievements() {
   ASSERT_NUM_EQUALS(achievement->id, 5504);
   ASSERT_STR_EQUALS(achievement->title, "Ach4");
   ASSERT_STR_EQUALS(achievement->description, "Desc4");
-  ASSERT_NUM_EQUALS(achievement->category, RC_ACHIEVEMENT_CATEGORY_CORE);
+  ASSERT_NUM_EQUALS(achievement->category, RC_ACHIEVEMENT_CATEGORY_PROMOTED);
   ASSERT_NUM_EQUALS(achievement->points, 10);
   ASSERT_STR_EQUALS(achievement->definition, "0=4");
   ASSERT_STR_EQUALS(achievement->author, ""); /* null author */
@@ -958,7 +973,7 @@ static void test_process_fetch_game_sets_response_achievements() {
   ASSERT_NUM_EQUALS(achievement->id, 5505);
   ASSERT_STR_EQUALS(achievement->title, "Ach5"); /* [m] stripped */
   ASSERT_STR_EQUALS(achievement->description, "Desc5");
-  ASSERT_NUM_EQUALS(achievement->category, RC_ACHIEVEMENT_CATEGORY_CORE);
+  ASSERT_NUM_EQUALS(achievement->category, RC_ACHIEVEMENT_CATEGORY_PROMOTED);
   ASSERT_NUM_EQUALS(achievement->points, 10);
   ASSERT_STR_EQUALS(achievement->definition, "0=4");
   ASSERT_STR_EQUALS(achievement->author, "User1");
@@ -973,7 +988,7 @@ static void test_process_fetch_game_sets_response_achievements() {
   ASSERT_NUM_EQUALS(achievement->id, 5506);
   ASSERT_STR_EQUALS(achievement->title, "Ach6"); /* [m] stripped */
   ASSERT_STR_EQUALS(achievement->description, "Desc6");
-  ASSERT_NUM_EQUALS(achievement->category, RC_ACHIEVEMENT_CATEGORY_CORE);
+  ASSERT_NUM_EQUALS(achievement->category, RC_ACHIEVEMENT_CATEGORY_PROMOTED);
   ASSERT_NUM_EQUALS(achievement->points, 10);
   ASSERT_STR_EQUALS(achievement->definition, "0=4");
   ASSERT_STR_EQUALS(achievement->author, "User1");
@@ -988,7 +1003,7 @@ static void test_process_fetch_game_sets_response_achievements() {
   ASSERT_NUM_EQUALS(achievement->id, 5507);
   ASSERT_STR_EQUALS(achievement->title, "Ach7");
   ASSERT_STR_EQUALS(achievement->description, "Desc7");
-  ASSERT_NUM_EQUALS(achievement->category, RC_ACHIEVEMENT_CATEGORY_CORE);
+  ASSERT_NUM_EQUALS(achievement->category, RC_ACHIEVEMENT_CATEGORY_PROMOTED);
   ASSERT_NUM_EQUALS(achievement->points, 5);
   ASSERT_STR_EQUALS(achievement->definition, "0=1");
   ASSERT_STR_EQUALS(achievement->author, "User1");
@@ -1249,7 +1264,7 @@ static void test_process_fetch_game_sets_response_specialty_subset() {
   ASSERT_NUM_EQUALS(achievement->id, 5507);
   ASSERT_STR_EQUALS(achievement->title, "Ach7");
   ASSERT_STR_EQUALS(achievement->description, "Desc7");
-  ASSERT_NUM_EQUALS(achievement->category, RC_ACHIEVEMENT_CATEGORY_CORE);
+  ASSERT_NUM_EQUALS(achievement->category, RC_ACHIEVEMENT_CATEGORY_PROMOTED);
   ASSERT_NUM_EQUALS(achievement->points, 5);
   ASSERT_STR_EQUALS(achievement->definition, "0=1");
   ASSERT_STR_EQUALS(achievement->author, "User1");
@@ -1273,7 +1288,7 @@ static void test_process_fetch_game_sets_response_specialty_subset() {
   ASSERT_NUM_EQUALS(achievement->id, 5501);
   ASSERT_STR_EQUALS(achievement->title, "Ach1");
   ASSERT_STR_EQUALS(achievement->description, "Desc1");
-  ASSERT_NUM_EQUALS(achievement->category, RC_ACHIEVEMENT_CATEGORY_CORE);
+  ASSERT_NUM_EQUALS(achievement->category, RC_ACHIEVEMENT_CATEGORY_PROMOTED);
   ASSERT_NUM_EQUALS(achievement->points, 5);
   ASSERT_STR_EQUALS(achievement->definition, "0=1");
   ASSERT_STR_EQUALS(achievement->author, "User1");
@@ -1288,7 +1303,7 @@ static void test_process_fetch_game_sets_response_specialty_subset() {
   ASSERT_NUM_EQUALS(achievement->id, 5502);
   ASSERT_STR_EQUALS(achievement->title, "Ach2");
   ASSERT_STR_EQUALS(achievement->description, "Desc2");
-  ASSERT_NUM_EQUALS(achievement->category, RC_ACHIEVEMENT_CATEGORY_CORE);
+  ASSERT_NUM_EQUALS(achievement->category, RC_ACHIEVEMENT_CATEGORY_PROMOTED);
   ASSERT_NUM_EQUALS(achievement->points, 2);
   ASSERT_STR_EQUALS(achievement->definition, "0=2");
   ASSERT_STR_EQUALS(achievement->author, "User1");
@@ -1303,7 +1318,7 @@ static void test_process_fetch_game_sets_response_specialty_subset() {
   ASSERT_NUM_EQUALS(achievement->id, 5503);
   ASSERT_STR_EQUALS(achievement->title, "Ach3");
   ASSERT_STR_EQUALS(achievement->description, "Desc3");
-  ASSERT_NUM_EQUALS(achievement->category, RC_ACHIEVEMENT_CATEGORY_UNOFFICIAL);
+  ASSERT_NUM_EQUALS(achievement->category, RC_ACHIEVEMENT_CATEGORY_UNPROMOTED);
   ASSERT_NUM_EQUALS(achievement->points, 0);
   ASSERT_STR_EQUALS(achievement->definition, "0=3");
   ASSERT_STR_EQUALS(achievement->author, "User2");
@@ -1340,7 +1355,7 @@ static void test_process_fetch_game_sets_response_specialty_subset() {
   ASSERT_NUM_EQUALS(achievement->id, 5504);
   ASSERT_STR_EQUALS(achievement->title, "Ach4");
   ASSERT_STR_EQUALS(achievement->description, "Desc4");
-  ASSERT_NUM_EQUALS(achievement->category, RC_ACHIEVEMENT_CATEGORY_CORE);
+  ASSERT_NUM_EQUALS(achievement->category, RC_ACHIEVEMENT_CATEGORY_PROMOTED);
   ASSERT_NUM_EQUALS(achievement->points, 10);
   ASSERT_STR_EQUALS(achievement->definition, "0=4");
   ASSERT_STR_EQUALS(achievement->author, ""); /* null author */
@@ -1355,7 +1370,7 @@ static void test_process_fetch_game_sets_response_specialty_subset() {
   ASSERT_NUM_EQUALS(achievement->id, 5505);
   ASSERT_STR_EQUALS(achievement->title, "Ach5"); /* [m] stripped */
   ASSERT_STR_EQUALS(achievement->description, "Desc5");
-  ASSERT_NUM_EQUALS(achievement->category, RC_ACHIEVEMENT_CATEGORY_CORE);
+  ASSERT_NUM_EQUALS(achievement->category, RC_ACHIEVEMENT_CATEGORY_PROMOTED);
   ASSERT_NUM_EQUALS(achievement->points, 10);
   ASSERT_STR_EQUALS(achievement->definition, "0=4");
   ASSERT_STR_EQUALS(achievement->author, "User1");
@@ -1370,7 +1385,7 @@ static void test_process_fetch_game_sets_response_specialty_subset() {
   ASSERT_NUM_EQUALS(achievement->id, 5506);
   ASSERT_STR_EQUALS(achievement->title, "Ach6"); /* [m] stripped */
   ASSERT_STR_EQUALS(achievement->description, "Desc6");
-  ASSERT_NUM_EQUALS(achievement->category, RC_ACHIEVEMENT_CATEGORY_CORE);
+  ASSERT_NUM_EQUALS(achievement->category, RC_ACHIEVEMENT_CATEGORY_PROMOTED);
   ASSERT_NUM_EQUALS(achievement->points, 10);
   ASSERT_STR_EQUALS(achievement->definition, "0=4");
   ASSERT_STR_EQUALS(achievement->author, "User1");
@@ -1444,7 +1459,7 @@ static void test_process_fetch_game_sets_response_exclusive_subset() {
   ASSERT_NUM_EQUALS(achievement->id, 5507);
   ASSERT_STR_EQUALS(achievement->title, "Ach7");
   ASSERT_STR_EQUALS(achievement->description, "Desc7");
-  ASSERT_NUM_EQUALS(achievement->category, RC_ACHIEVEMENT_CATEGORY_CORE);
+  ASSERT_NUM_EQUALS(achievement->category, RC_ACHIEVEMENT_CATEGORY_PROMOTED);
   ASSERT_NUM_EQUALS(achievement->points, 5);
   ASSERT_STR_EQUALS(achievement->definition, "0=1");
   ASSERT_STR_EQUALS(achievement->author, "User1");
@@ -2145,6 +2160,7 @@ void test_rapi_runtime(void) {
   TEST(test_process_fetch_game_data_response_achievement_types);
   TEST(test_process_fetch_game_data_response_achievement_rarity);
   TEST(test_process_fetch_game_data_response_achievement_null_author);
+  TEST(test_process_fetch_game_data_response_achievement_null_title);
   TEST(test_process_fetch_game_data_response_leaderboards);
   TEST(test_process_fetch_game_data_response_rich_presence);
   TEST(test_process_fetch_game_data_response_rich_presence_null);
